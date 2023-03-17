@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "vitest",
-    "dev": "tsx --watch server/index.ts",
+    "dev": "ts-node-dev server/index.ts",
     "bundle": "tsx scripts/bundle.ts"
   },
   "keywords": [],
@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/express": "^4.17.17",
     "@types/node": "^18.15.0",
+    "ts-node-dev": "^2.0.0",
     "tsx": "^3.12.4",
     "typescript": "^5.0.2",
     "vitest": "^0.29.2"
