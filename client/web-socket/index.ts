@@ -1,11 +1,11 @@
-import EventEmitter from 'events';
 import { deserializeEvent, serializeEvent } from './serialization/event';
 import { DataTransfer } from './transference';
+import { createTypedEventEmitter } from './util/typed-events';
 
 export interface Socket {
   on(eventName: string, listener: (...args: any[]) => void): void;
-  on(eventName: 'connect', listener: () => void): void;
-  on(eventName: 'disconnect', listener: () => void): void;
+  on(eventName: typeof SOCKET_CONNECTION_EVENT, listener: () => void): void;
+  on(eventName: typeof SOCKET_DISCONNECTION_EVENT, listener: () => void): void;
   emit(eventName: string, ...args: any[]): void;
   end(): void;
 }
@@ -13,28 +13,30 @@ export interface Socket {
 export const SOCKET_CONNECTION_EVENT = 'connect';
 export const SOCKET_DISCONNECTION_EVENT = 'disconnect';
 
-export const EVENT_EMITTION = Symbol()
-export const SOCKET_DISCONNECTION = Symbol();
+export type InternalSocketEvents = {
+  'event-emittion': [eventName: string, args: any[]];
+  'socket-disconnection': [];
+}
 
 export async function createSocket() {
-  const reciver = new EventEmitter();
-  const emmiter = new EventEmitter();
+  const listeners = createTypedEventEmitter();
+  const emitter = createTypedEventEmitter<InternalSocketEvents>();
 
   const socket: Socket = {
     on(eventName: string, listener: (...args: any[]) => void) {
-      reciver.on(eventName, listener);
+      listeners.on(eventName, listener);
     },
 
     emit(eventName: string, ...args: any[]) {
-      emmiter.emit(EVENT_EMITTION, eventName, args);
+      emitter.emit('event-emittion', eventName, args);
     },
 
     end() {
-      emmiter.emit(SOCKET_DISCONNECTION);
-      reciver.emit(SOCKET_DISCONNECTION_EVENT);
+      listeners.emit(SOCKET_DISCONNECTION_EVENT);
+      emitter.emit('socket-disconnection');
 
-      reciver.removeAllListeners();
-      emmiter.removeAllListeners();
+      listeners.removeAllListeners();
+      emitter.removeAllListeners();
     }
   };
 
@@ -48,13 +50,13 @@ export async function createSocket() {
     if (result.success) {
       const { eventName, args } = result.data;
 
-      reciver.emit(eventName, ...args);
+      listeners.emit(eventName, ...args);
     } else {
       console.warn(result.error);
     }
   });
 
-  emmiter.on(EVENT_EMITTION, (eventName: string, args: any[]) => {
+  emitter.on('event-emittion', (eventName, args) => {
     const result = serializeEvent({ eventName, args });
 
     if (result.success) {
@@ -64,10 +66,9 @@ export async function createSocket() {
     }
   });
 
-  emmiter.on(SOCKET_DISCONNECTION, () => {
+  emitter.on('socket-disconnection', () => {
     transfer.close();
   });
 
   return socket;
 }
-
